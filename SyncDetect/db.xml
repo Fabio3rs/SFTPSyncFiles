@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Template configuration file. Put in the project compilation output directory -->
+<Configs>
+  <Server Name="Test">
+    <Svraddr>192.168.0.1</Svraddr>
+    <Svrport>22</Svrport>
+    <Svruser>serveruser</Svruser>
+    <Svrpasswd>serveruserpass</Svrpasswd>
+    <Svrdirectory>/upload</Svrdirectory>
+    <Localdirectory>C:\things</Localdirectory>
+  </Server>
+  <Server Name="Test2">
+    <Svraddr>192.168.0.1</Svraddr>
+    <Svrport>22</Svrport>
+    <Svruser>serveruser</Svruser>
+    <Svrpasswd>serveruserpass</Svrpasswd>
+    <Svrdirectory>/docs</Svrdirectory>
+    <Localdirectory>C:\docs</Localdirectory>
+  </Server>
+</Configs>
