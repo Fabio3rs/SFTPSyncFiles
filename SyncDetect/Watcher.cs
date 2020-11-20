@@ -220,8 +220,9 @@ namespace SyncDetect
                     {
                         attr = File.GetAttributes(f.FullPath);
                     }
-                    catch(Exception)
+                    catch(Exception ex)
                     {
+                        interf.AppendTextBox(ex.Message);
                         continue;
                     }
 
@@ -235,9 +236,9 @@ namespace SyncDetect
                             if (!client.Exists(spath))
                                 client.CreateDirectory(spath);
                         }
-                        catch(Exception)
+                        catch(Exception ex)
                         {
-
+                            interf.AppendTextBox(ex.Message);
                         }
                     }
                     else
@@ -257,8 +258,9 @@ namespace SyncDetect
                         if (client.Exists(spath))
                             client.RenameFile(spath, spath + ".file_deleted");
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
+                        interf.AppendTextBox(ex.Message);
                         continue;
                     }
                 }
