@@ -201,12 +201,42 @@ namespace SyncDetect
             mut.ReleaseMutex();
         }
 
+        void RecursiveSVMkdir(string dir)
+        {
+            if (client.Exists(dir))
+                return;
+
+            dir = dir.Replace("//", "/");
+            string[] paths = dir.Split('/');
+            string nfullpath = "";
+
+            int start = 0;
+
+            if (dir.Length > 0
+                && dir[0] == '/')
+            {
+                ++start;
+            }
+
+            for (int i = start; i < paths.Length; i++)
+            {
+                nfullpath += "/";
+                nfullpath += paths[i];
+
+                if (!client.Exists(nfullpath))
+                    client.CreateDirectory(nfullpath);
+            }
+        }
+
         private void OnTimedEvent(Object source, ElapsedEventArgs e)
         {
             mut.WaitOne();
             aTimer.Stop();
 
-            foreach(FileSystemEventArgs f in fse)
+            // Sorting the file list makes sure the actions are applied to the parent directory first
+            List<FileSystemEventArgs> SortedList = fse.OrderBy(o => o.Name).ToList();
+
+            foreach (FileSystemEventArgs f in SortedList)
             {
                 string fpath = f.FullPath.Replace(path, "");
                 fpath = fpath.Replace("\\", "/");
@@ -243,6 +273,15 @@ namespace SyncDetect
                     }
                     else
                     {
+                        string fmtname = Path.GetDirectoryName(f.FullPath);
+                        fmtname = fmtname.Replace(path, "");
+                        fmtname = fmtname.Replace("\\\\", "/");
+                        fmtname = fmtname.Replace("\\", "/");
+                        //string lfname = StringUtils.RemoveFromEnd(fpath, fmtname);
+                        string svfullpath = serverpath + fmtname;
+
+                        RecursiveSVMkdir(svfullpath);
+
                         using (FileStream fs = new FileStream(f.FullPath, FileMode.Open))
                         {
                             client.BufferSize = 4 * 1024;
