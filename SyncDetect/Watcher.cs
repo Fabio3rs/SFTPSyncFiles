@@ -273,19 +273,26 @@ namespace SyncDetect
                     }
                     else
                     {
-                        string fmtname = Path.GetDirectoryName(f.FullPath);
-                        fmtname = fmtname.Replace(path, "");
-                        fmtname = fmtname.Replace("\\\\", "/");
-                        fmtname = fmtname.Replace("\\", "/");
-                        //string lfname = StringUtils.RemoveFromEnd(fpath, fmtname);
-                        string svfullpath = serverpath + fmtname;
-
-                        RecursiveSVMkdir(svfullpath);
-
-                        using (FileStream fs = new FileStream(f.FullPath, FileMode.Open))
+                        try
                         {
-                            client.BufferSize = 4 * 1024;
-                            client.UploadFile(fs, serverpath + fpath);
+                            string fmtname = Path.GetDirectoryName(f.FullPath);
+                            fmtname = fmtname.Replace(path, "");
+                            fmtname = fmtname.Replace("\\\\", "/");
+                            fmtname = fmtname.Replace("\\", "/");
+                            //string lfname = StringUtils.RemoveFromEnd(fpath, fmtname);
+                            string svfullpath = serverpath + fmtname;
+
+                            RecursiveSVMkdir(svfullpath);
+
+                            using (FileStream fs = new FileStream(f.FullPath, FileMode.Open))
+                            {
+                                client.BufferSize = 4 * 1024;
+                                client.UploadFile(fs, serverpath + fpath);
+                            }
+                        }
+                        catch(Exception ex)
+                        {
+                            interf.AppendTextBox(ex.Message + "   " + ex.StackTrace + "   " + ex.Source + "\n\n\n\n");
                         }
                     }
                 }
