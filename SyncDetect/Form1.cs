@@ -145,6 +145,24 @@ namespace SyncDetect
             }
 
             {
+                DataGridViewColumn c = listaservers.Columns["user"];
+                c.HeaderText = "Usuário";
+                c.MinimumWidth = 60;
+                c.Width = 60;
+                c.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+                c.ReadOnly = false;
+            }
+
+            {
+                DataGridViewColumn c = listaservers.Columns["passwd"];
+                c.HeaderText = "Senha";
+                c.MinimumWidth = 60;
+                c.Width = 60;
+                c.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+                c.ReadOnly = false;
+            }
+
+            {
                 DataGridViewTextBoxColumn txtb = new DataGridViewTextBoxColumn();
                 txtb.HeaderText = "STATUS";
                 txtb.CellTemplate.ToolTipText = "Status";
@@ -173,7 +191,33 @@ namespace SyncDetect
 
         private void timer1_Tick(object sender, EventArgs e)
         {
+            bool processing = false;
+            if (list_wa.Count > 0)
+            {
+                for (int i = 0; i < list_wa.Count; i++)
+                {
+                    bool bmut = list_wa[i].mut.WaitOne(30);
 
+                    if (bmut)
+                    {
+                        list_wa[i].mut.ReleaseMutex();
+
+                        listaservers.Rows[i].Cells["status"].Value = "Idle/Watching";
+                    }
+                    else
+                    {
+                        processing = true;
+
+                        listaservers.Rows[i].Cells["status"].Value = "Processando";
+                    }
+                }
+
+                actionsmutexstatus.Text = processing? "Processando..." : "Only watching";
+            }
+            else
+            {
+                actionsmutexstatus.Text = "Nenhum watcher ativo/Desconectado";
+            }
         }
 
         public void addToTextBox(String text)
@@ -302,6 +346,9 @@ namespace SyncDetect
                         dr["targetd"].ToString()));
                 }
             }
+
+            syncdir.Enabled = true;
+            timer1.Interval = 1000;
         }
     }
 }
