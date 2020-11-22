@@ -84,6 +84,7 @@ namespace SyncDetect
                     if (f.ChangeType == WatcherChangeTypes.Deleted)
                     {
                         fse[i] = f;
+                        exists = true;
                         break;
                     }
                     else if (e.ChangeType == f.ChangeType)
@@ -285,10 +286,15 @@ namespace SyncDetect
             aTimer.Stop();
 
             // Sorting the file list makes sure the actions are applied to the parent directory first
-            List<FileSystemEventArgs> SortedList = fse.OrderBy(o => o.Name).ToList();
+            List<FileSystemEventArgs> SortedList = fse.OrderBy(o => o.FullPath).ToList();
 
-            foreach (FileSystemEventArgs f in SortedList)
+            for (int i = 0; i < SortedList.Count; i++)
             {
+                FileSystemEventArgs f = SortedList[i];
+
+                if (f == null)
+                    continue;
+
                 string fpath = f.FullPath.Replace(path, "");
                 fpath = fpath.Replace("\\", "/");
                 //System.Windows.Forms.MessageBox.Show(f.Name + "   " + fpath + "  " + f.ChangeType.ToString());
@@ -321,6 +327,28 @@ namespace SyncDetect
                         }
 
                         DirSearchF(f.FullPath);
+
+                        for (int j = i + 1; j < SortedList.Count; j++)
+                        {
+                            string bsl = "\\";
+
+                            if (f.FullPath.Contains("/"))
+                            {
+                                bsl = "/";
+                            }
+
+                            if (f.FullPath.EndsWith(bsl))
+                            {
+                                bsl = "";
+                            }
+
+                            bool ischilddir = SortedList[j].FullPath == f.FullPath? true : SortedList[j].FullPath.StartsWith(f.FullPath + bsl);
+
+                            if (ischilddir)
+                            {
+                                SortedList[j] = null;
+                            }
+                        }
                     }
                     else
                     {
@@ -353,7 +381,36 @@ namespace SyncDetect
                     {
                         string spath = serverpath + fpath;
                         if (client.Exists(spath))
+                        {
+                            bool isdirectory = client.GetAttributes(spath).IsDirectory;
+
                             client.RenameFile(spath, spath + ".file_deleted");
+
+                            if (isdirectory)
+                            {
+                                for (int j = i + 1; j < SortedList.Count; j++)
+                                {
+                                    string bsl = "\\";
+
+                                    if (f.FullPath.Contains("/"))
+                                    {
+                                        bsl = "/";
+                                    }
+
+                                    if (f.FullPath.EndsWith(bsl))
+                                    {
+                                        bsl = "";
+                                    }
+
+                                    bool ischilddir = SortedList[j].FullPath == f.FullPath ? true : SortedList[j].FullPath.StartsWith(f.FullPath + bsl);
+
+                                    if (ischilddir)
+                                    {
+                                        SortedList[j] = null;
+                                    }
+                                }
+                            }
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -449,37 +506,41 @@ namespace SyncDetect
         // Define the event handlers.
         private void OnChanged(object source, FileSystemEventArgs e)
         {
-            // Specify what is done when a file is changed, created, or deleted.
-            //sw.WriteLine($"File: {e.FullPath} {e.ChangeType}");
-            //System.Windows.Forms.MessageBox.Show($"File: {e.FullPath} {e.ChangeType}");
-            mut.WaitOne();
-            addToFileListUnique(e);
-            aTimer.Stop();
+            try
+            {
+                mut.WaitOne();
+                addToFileListUnique(e);
+                aTimer.Stop();
 
-            int operationsCount = fse.Count + fsren.Count;
+                int operationsCount = fse.Count + fsren.Count;
 
-            if (operationsCount > 100)
-            {
-                aTimer.Interval = 60000;
-            }
-            else if (operationsCount > 10)
-            {
-                aTimer.Interval = 20000;
-            }
-            else if (operationsCount > 5)
-            {
-                aTimer.Interval = 10000;
-            }
-            else
-            {
-                aTimer.Interval = 5000;
-            }
+                if (operationsCount > 100)
+                {
+                    aTimer.Interval = 60000;
+                }
+                else if (operationsCount > 10)
+                {
+                    aTimer.Interval = 20000;
+                }
+                else if (operationsCount > 5)
+                {
+                    aTimer.Interval = 10000;
+                }
+                else
+                {
+                    aTimer.Interval = 5000;
+                }
 
-            aTimer.Start();
-            aTimer.Enabled = true;
-            interf.AppendTextBox($"{DateTime.Now.ToString()}    File:   {e.FullPath} {e.ChangeType}\n");
-            mut.ReleaseMutex();
-            //interf.addToTextBox($"File: {e.FullPath} {e.ChangeType}");
+                aTimer.Start();
+                aTimer.Enabled = true;
+                interf.AppendTextBox($"{DateTime.Now.ToString()}    File:   {e.FullPath} {e.ChangeType}\n");
+                mut.ReleaseMutex();
+                //interf.addToTextBox($"File: {e.FullPath} {e.ChangeType}");
+            }
+            catch (Exception ex)
+            {
+                interf.AppendTextBox(ex.Message + "   " + ex.StackTrace + "   " + ex.Source + "\n\n\n\n");
+            }
         }
 
         private void OnRenamed(object source, RenamedEventArgs e)
