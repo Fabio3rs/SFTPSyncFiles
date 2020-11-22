@@ -5,12 +5,12 @@ using System.Runtime.InteropServices;
 // As informações gerais sobre um assembly são controladas por
 // conjunto de atributos. Altere estes valores de atributo para modificar as informações
 // associadas a um assembly.
-[assembly: AssemblyTitle("SyncDetect")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyTitle("Backup e sincronização SFTP")]
+[assembly: AssemblyDescription("Sincronização e backup automático de diretórios escolhidos com SFTP")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("SyncDetect")]
-[assembly: AssemblyCopyright("Copyright ©  2020")]
+[assembly: AssemblyProduct("SFTP Sync files")]
+[assembly: AssemblyCopyright("Copyright Fabio Rossini Sluzala ©  2020")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

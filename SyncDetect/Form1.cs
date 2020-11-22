@@ -171,16 +171,6 @@ namespace SyncDetect
                 listaservers.Columns.Add(txtb);
             }
 
-            {
-                DataGridViewButtonColumn btn = new DataGridViewButtonColumn();
-                btn.HeaderText = "REMOVER";
-                btn.CellTemplate.ToolTipText = "Remove";
-                btn.Name = "REMOVER";
-                btn.Text = "Remove";
-                btn.MinimumWidth = 120;
-                listaservers.Columns.Add(btn);
-            }
-
             /*{
                 DataRow dr = dblistservers.Rows.Add();
                 Datamgr.get(dr);
