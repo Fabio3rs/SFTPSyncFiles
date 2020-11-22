@@ -51,7 +51,7 @@ namespace SyncDetect
         public Mutex mut = new Mutex();
 
         private System.Timers.Timer aTimer = new System.Timers.Timer(5000);
-        private System.Timers.Timer aRenTimer = new System.Timers.Timer(7000);
+        private System.Timers.Timer aRenTimer = new System.Timers.Timer(4000);
 
         public void stop()
         {
@@ -128,28 +128,35 @@ namespace SyncDetect
                 {
                     string svpath = sDir.Replace(path, "");
                     svpath = svpath.Replace("\\", "/");
-                    client.CreateDirectory(serverpath + svpath);
-                }
-                catch(Exception)
-                {
+                    string fullpath = serverpath + svpath;
 
+                    RecursiveSVMkdir(fullpath);
+                }
+                catch(Exception ex)
+                {
+                    interf.AppendTextBox(ex.Message + "   " + ex.StackTrace + "   " + ex.Source + "\n\n\n\n");
                 }
 
                 foreach (string f in Directory.GetFiles(sDir))
                 {
-                    string svpath = sDir.Replace(path, "");
+                    if (f == "." || f == "..")
+                        continue;
+
+                    string svpath = f.Replace(path, "");
                     svpath = svpath.Replace("\\", "/");
+                    string fullfilepath = serverpath + svpath;
                     //System.Windows.Forms.MessageBox.Show(f);
                     try
                     {
                         using (FileStream fs = new FileStream(f, FileMode.Open))
                         {
                             client.BufferSize = 4 * 1024;
-                            client.UploadFile(fs, serverpath + svpath);
+                            client.UploadFile(fs, fullfilepath);
                         }
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
+                        interf.AppendTextBox(ex.Message + "   " + fullfilepath + "   " + ex.StackTrace + "   " + ex.Source + "\n\n\n\n");
                         continue;
                     }
                 }
@@ -159,15 +166,36 @@ namespace SyncDetect
                     DirSearchF(d);
                 }
             }
-            catch (System.Exception excpt)
+            catch (System.Exception ex)
             {
-                Console.WriteLine(excpt.Message);
+                interf.AppendTextBox(ex.Message + "   " + ex.StackTrace + "   " + ex.Source + "\n\n\n\n");
             }
         }
 
         private void OnTimedRenameEvent(Object source, ElapsedEventArgs e)
         {
             mut.WaitOne();
+
+            if (aTimer.Enabled)
+            {
+                aTimer.Stop();
+                aTimer.Start();
+            }
+
+            if (!client.IsConnected)
+            {
+                try
+                {
+                    client.Connect();
+                }
+                catch (Exception ex)
+                {
+                    interf.AppendTextBox(ex.Message + "   " + ex.StackTrace + "   " + ex.Source + "\n\n\n\n");
+                    mut.ReleaseMutex();
+                    return;
+                }
+            }
+
             aRenTimer.Stop();
             // Specify what is done when a file is renamed.
             //sw.WriteLine($"File: {e.OldFullPath} renamed to {e.FullPath}");
@@ -183,10 +211,18 @@ namespace SyncDetect
 
 
                 string spath = serverpath + fpath;
-                string soldpath = serverpath + fpath;
+                string soldpath = serverpath + foldpath;
 
                 if (client.Exists(soldpath))
-                    client.RenameFile(soldpath, spath);
+                {
+                    try
+                    {
+                        client.RenameFile(soldpath, spath);
+                    }catch (Exception ex)
+                    {
+                        interf.AppendTextBox(ex.Message + "   " + ex.StackTrace + "   " + ex.Source + "\n\n\n\n");
+                    }
+                }
                 else
                 {
                     using (FileStream fs = new FileStream(f.FullPath, FileMode.Open))
@@ -231,6 +267,21 @@ namespace SyncDetect
         private void OnTimedEvent(Object source, ElapsedEventArgs e)
         {
             mut.WaitOne();
+
+            if (!client.IsConnected)
+            {
+                try
+                {
+                    client.Connect();
+                }
+                catch (Exception ex)
+                {
+                    interf.AppendTextBox(ex.Message + "   " + ex.StackTrace + "   " + ex.Source + "\n\n\n\n");
+                    mut.ReleaseMutex();
+                    return;
+                }
+            }
+
             aTimer.Stop();
 
             // Sorting the file list makes sure the actions are applied to the parent directory first
@@ -258,8 +309,6 @@ namespace SyncDetect
 
                     if ((attr & FileAttributes.Directory) == FileAttributes.Directory)
                     {
-                        DirSearchF(f.FullPath);
-
                         try
                         {
                             string spath = serverpath + fpath;
@@ -270,6 +319,8 @@ namespace SyncDetect
                         {
                             interf.AppendTextBox(ex.Message);
                         }
+
+                        DirSearchF(f.FullPath);
                     }
                     else
                     {
@@ -404,6 +455,26 @@ namespace SyncDetect
             mut.WaitOne();
             addToFileListUnique(e);
             aTimer.Stop();
+
+            int operationsCount = fse.Count + fsren.Count;
+
+            if (operationsCount > 100)
+            {
+                aTimer.Interval = 60000;
+            }
+            else if (operationsCount > 10)
+            {
+                aTimer.Interval = 20000;
+            }
+            else if (operationsCount > 5)
+            {
+                aTimer.Interval = 10000;
+            }
+            else
+            {
+                aTimer.Interval = 5000;
+            }
+
             aTimer.Start();
             aTimer.Enabled = true;
             interf.AppendTextBox($"{DateTime.Now.ToString()}    File:   {e.FullPath} {e.ChangeType}\n");
@@ -416,6 +487,26 @@ namespace SyncDetect
             mut.WaitOne();
             fsren.Add(e);
             aRenTimer.Stop();
+
+            int operationsCount = fse.Count + fsren.Count;
+
+            if (operationsCount > 100)
+            {
+                aTimer.Interval = 60000;
+            }
+            else if (operationsCount > 10)
+            {
+                aTimer.Interval = 20000;
+            }
+            else if (operationsCount > 5)
+            {
+                aTimer.Interval = 10000;
+            }
+            else
+            {
+                aTimer.Interval = 5000;
+            }
+
             aRenTimer.Start();
             aRenTimer.Enabled = true;
             interf.AppendTextBox($"{DateTime.Now.ToString()}    File:   {e.OldFullPath} renamed to {e.FullPath}\n");
