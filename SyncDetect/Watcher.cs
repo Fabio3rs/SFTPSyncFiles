@@ -73,6 +73,18 @@ namespace SyncDetect
             mut.ReleaseMutex();
         }
 
+        void removeRenFileFromMList(RenamedEventArgs f)
+        {
+            for (int i = 0; i < fse.Count; i++)
+            {
+                if (fse[i].FullPath == f.OldFullPath)
+                {
+                    fse.RemoveAt(i);
+                    --i;
+                }
+            }
+        }
+
         void addToFileListUnique(FileSystemEventArgs f)
         {
             bool exists = false;
@@ -175,66 +187,82 @@ namespace SyncDetect
 
         private void OnTimedRenameEvent(Object source, ElapsedEventArgs e)
         {
-            mut.WaitOne();
-
-            if (aTimer.Enabled)
+            try
             {
-                aTimer.Stop();
-                aTimer.Start();
-            }
+                mut.WaitOne();
 
-            if (!client.IsConnected)
-            {
-                try
+                if (aTimer.Enabled)
                 {
-                    client.Connect();
+                    aTimer.Stop();
+                    aTimer.Start();
                 }
-                catch (Exception ex)
-                {
-                    interf.AppendTextBox(ex.Message + "   " + ex.StackTrace + "   " + ex.Source + "\n\n\n\n");
-                    mut.ReleaseMutex();
-                    return;
-                }
-            }
 
-            aRenTimer.Stop();
-            // Specify what is done when a file is renamed.
-            //sw.WriteLine($"File: {e.OldFullPath} renamed to {e.FullPath}");
-
-            foreach (RenamedEventArgs f in fsren)
-            {
-                string fpath = f.FullPath.Replace(path, "");
-                fpath = fpath.Replace("\\", "/");
-
-
-                string foldpath = f.OldFullPath.Replace(path, "");
-                foldpath = foldpath.Replace("\\", "/");
-
-
-                string spath = serverpath + fpath;
-                string soldpath = serverpath + foldpath;
-
-                if (client.Exists(soldpath))
+                if (!client.IsConnected)
                 {
                     try
                     {
-                        client.RenameFile(soldpath, spath);
-                    }catch (Exception ex)
+                        client.Connect();
+                    }
+                    catch (Exception ex)
                     {
                         interf.AppendTextBox(ex.Message + "   " + ex.StackTrace + "   " + ex.Source + "\n\n\n\n");
+                        mut.ReleaseMutex();
+                        return;
                     }
                 }
-                else
+
+                aRenTimer.Stop();
+                // Specify what is done when a file is renamed.
+                //sw.WriteLine($"File: {e.OldFullPath} renamed to {e.FullPath}");
+
+                foreach (RenamedEventArgs f in fsren)
                 {
-                    using (FileStream fs = new FileStream(f.FullPath, FileMode.Open))
+                    string fpath = f.FullPath.Replace(path, "");
+                    fpath = fpath.Replace("\\", "/");
+
+
+                    string foldpath = f.OldFullPath.Replace(path, "");
+                    foldpath = foldpath.Replace("\\", "/");
+
+
+                    string spath = serverpath + fpath;
+                    string soldpath = serverpath + foldpath;
+
+                    if (client.Exists(soldpath))
                     {
-                        client.BufferSize = 4 * 1024;
-                        client.UploadFile(fs, spath);
+                        try
+                        {
+                            client.RenameFile(soldpath, spath);
+                        }
+                        catch (Exception ex)
+                        {
+                            interf.AppendTextBox(ex.Message + "   " + ex.StackTrace + "   " + ex.Source + "\n\n\n\n");
+                        }
+                    }
+                    else
+                    {
+                        if (File.GetAttributes(f.FullPath).HasFlag(FileAttributes.Directory))
+                        {
+                            DirSearchF(f.FullPath);
+                        }
+                        else
+                        {
+                            using (FileStream fs = new FileStream(f.FullPath, FileMode.Open))
+                            {
+                                client.BufferSize = 4 * 1024;
+                                client.UploadFile(fs, spath);
+                            }
+                        }
                     }
                 }
+
+                fsren.Clear();
+            }
+            catch (Exception ex)
+            {
+                interf.AppendTextBox(ex.Message + "   " + ex.StackTrace + "   " + ex.Source + "\n\n\n\n");
             }
 
-            fsren.Clear();
             mut.ReleaseMutex();
         }
 
@@ -267,86 +295,115 @@ namespace SyncDetect
 
         private void OnTimedEvent(Object source, ElapsedEventArgs e)
         {
-            mut.WaitOne();
-
-            if (!client.IsConnected)
+            try
             {
-                try
+                mut.WaitOne();
+
+                if (!client.IsConnected)
                 {
-                    client.Connect();
-                }
-                catch (Exception ex)
-                {
-                    interf.AppendTextBox(ex.Message + "   " + ex.StackTrace + "   " + ex.Source + "\n\n\n\n");
-                    mut.ReleaseMutex();
-                    return;
-                }
-            }
-
-            aTimer.Stop();
-
-            // Sorting the file list makes sure the actions are applied to the parent directory first
-            List<FileSystemEventArgs> SortedList = fse.OrderBy(o => o.FullPath).ToList();
-
-            for (int i = 0; i < SortedList.Count; i++)
-            {
-                FileSystemEventArgs f = SortedList[i];
-
-                if (f == null)
-                    continue;
-
-                string fpath = f.FullPath.Replace(path, "");
-                fpath = fpath.Replace("\\", "/");
-                //System.Windows.Forms.MessageBox.Show(f.Name + "   " + fpath + "  " + f.ChangeType.ToString());
-                
-                if (f.ChangeType != WatcherChangeTypes.Deleted)
-                {
-                    FileAttributes attr = FileAttributes.Directory;
-                    
                     try
                     {
-                        attr = File.GetAttributes(f.FullPath);
+                        client.Connect();
                     }
-                    catch(Exception ex)
+                    catch (Exception ex)
                     {
-                        interf.AppendTextBox(ex.Message);
-                        continue;
+                        interf.AppendTextBox(ex.Message + "   " + ex.StackTrace + "   " + ex.Source + "\n\n\n\n");
+                        mut.ReleaseMutex();
+                        return;
                     }
+                }
 
-                    if ((attr & FileAttributes.Directory) == FileAttributes.Directory)
+                aTimer.Stop();
+
+                // Sorting the file list makes sure the actions are applied to the parent directory first
+                List<FileSystemEventArgs> SortedList = fse.OrderBy(o => o.FullPath).ToList();
+
+                for (int i = 0; i < SortedList.Count; i++)
+                {
+                    FileSystemEventArgs f = SortedList[i];
+
+                    if (f == null)
+                        continue;
+
+                    string fpath = f.FullPath.Replace(path, "");
+                    fpath = fpath.Replace("\\", "/");
+                    //System.Windows.Forms.MessageBox.Show(f.Name + "   " + fpath + "  " + f.ChangeType.ToString());
+
+                    if (f.ChangeType != WatcherChangeTypes.Deleted)
                     {
+                        FileAttributes attr = FileAttributes.Directory;
+
                         try
                         {
-                            string spath = serverpath + fpath;
-                            if (!client.Exists(spath))
-                                client.CreateDirectory(spath);
+                            attr = File.GetAttributes(f.FullPath);
                         }
-                        catch(Exception ex)
+                        catch (Exception ex)
                         {
                             interf.AppendTextBox(ex.Message);
+                            continue;
                         }
 
-                        DirSearchF(f.FullPath);
-
-                        for (int j = i + 1; j < SortedList.Count; j++)
+                        if ((attr & FileAttributes.Directory) == FileAttributes.Directory)
                         {
-                            string bsl = "\\";
-
-                            if (f.FullPath.Contains("/"))
+                            try
                             {
-                                bsl = "/";
+                                string spath = serverpath + fpath;
+                                if (!client.Exists(spath))
+                                    client.CreateDirectory(spath);
+                            }
+                            catch (Exception ex)
+                            {
+                                interf.AppendTextBox(ex.Message);
                             }
 
-                            if (f.FullPath.EndsWith(bsl))
+                            DirSearchF(f.FullPath);
+
+                            for (int j = i + 1; j < SortedList.Count; j++)
                             {
-                                bsl = "";
+                                string bsl = "\\";
+
+                                if (f.FullPath.Contains("/"))
+                                {
+                                    bsl = "/";
+                                }
+
+                                if (f.FullPath.EndsWith(bsl))
+                                {
+                                    bsl = "";
+                                }
+
+                                bool ischilddir = SortedList[j].FullPath == f.FullPath ? true : SortedList[j].FullPath.StartsWith(f.FullPath + bsl);
+
+                                if (ischilddir)
+                                {
+                                    //SortedList[j] = null;
+                                    SortedList.RemoveAt(j);
+                                    j--;
+                                }
                             }
-
-                            bool ischilddir = SortedList[j].FullPath == f.FullPath? true : SortedList[j].FullPath.StartsWith(f.FullPath + bsl);
-
-                            if (ischilddir)
+                        }
+                        else
+                        {
+                            try
                             {
-                                SortedList[j] = null;
+                                string fmtname = Path.GetDirectoryName(f.FullPath);
+                                fmtname = fmtname.Replace(path, "");
+                                fmtname = fmtname.Replace("\\\\", "/");
+                                fmtname = fmtname.Replace("\\", "/");
+                                //string lfname = StringUtils.RemoveFromEnd(fpath, fmtname);
+                                string svfullpath = serverpath + fmtname;
+
+                                RecursiveSVMkdir(svfullpath);
+
+                                using (FileStream fs = new FileStream(f.FullPath, FileMode.Open))
+                                {
+                                    client.BufferSize = 4 * 1024;
+                                    client.UploadFile(fs, serverpath + fpath);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                interf.AppendTextBox(ex.Message + "   " + ex.StackTrace + "   " + ex.Source + "\n\n\n\n");
                             }
                         }
                     }
@@ -354,75 +411,54 @@ namespace SyncDetect
                     {
                         try
                         {
-                            string fmtname = Path.GetDirectoryName(f.FullPath);
-                            fmtname = fmtname.Replace(path, "");
-                            fmtname = fmtname.Replace("\\\\", "/");
-                            fmtname = fmtname.Replace("\\", "/");
-                            //string lfname = StringUtils.RemoveFromEnd(fpath, fmtname);
-                            string svfullpath = serverpath + fmtname;
-
-                            RecursiveSVMkdir(svfullpath);
-
-                            using (FileStream fs = new FileStream(f.FullPath, FileMode.Open))
+                            string spath = serverpath + fpath;
+                            if (client.Exists(spath))
                             {
-                                client.BufferSize = 4 * 1024;
-                                client.UploadFile(fs, serverpath + fpath);
-                            }
-                        }
-                        catch(Exception ex)
-                        {
-                            interf.AppendTextBox(ex.Message + "   " + ex.StackTrace + "   " + ex.Source + "\n\n\n\n");
-                        }
-                    }
-                }
-                else
-                {
-                    try
-                    {
-                        string spath = serverpath + fpath;
-                        if (client.Exists(spath))
-                        {
-                            bool isdirectory = client.GetAttributes(spath).IsDirectory;
+                                bool isdirectory = client.GetAttributes(spath).IsDirectory;
 
-                            client.RenameFile(spath, spath + ".file_deleted");
+                                client.RenameFile(spath, spath + ".file_deleted");
 
-                            if (isdirectory)
-                            {
-                                for (int j = i + 1; j < SortedList.Count; j++)
+                                if (isdirectory)
                                 {
-                                    string bsl = "\\";
-
-                                    if (f.FullPath.Contains("/"))
+                                    for (int j = i + 1; j < SortedList.Count; j++)
                                     {
-                                        bsl = "/";
-                                    }
+                                        string bsl = "\\";
 
-                                    if (f.FullPath.EndsWith(bsl))
-                                    {
-                                        bsl = "";
-                                    }
+                                        if (f.FullPath.Contains("/"))
+                                        {
+                                            bsl = "/";
+                                        }
 
-                                    bool ischilddir = SortedList[j].FullPath == f.FullPath ? true : SortedList[j].FullPath.StartsWith(f.FullPath + bsl);
+                                        if (f.FullPath.EndsWith(bsl))
+                                        {
+                                            bsl = "";
+                                        }
 
-                                    if (ischilddir)
-                                    {
-                                        SortedList[j] = null;
+                                        bool ischilddir = SortedList[j].FullPath == f.FullPath ? true : SortedList[j].FullPath.StartsWith(f.FullPath + bsl);
+
+                                        if (ischilddir)
+                                        {
+                                            SortedList[j] = null;
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        interf.AppendTextBox(ex.Message);
-                        continue;
+                        catch (Exception ex)
+                        {
+                            interf.AppendTextBox(ex.Message);
+                            continue;
+                        }
                     }
                 }
+                fse.Clear();
             }
-            fse.Clear();
+            catch (Exception ex)
+            {
+                interf.AppendTextBox(ex.Message);
+            }
+
             mut.ReleaseMutex();
-            /*System.Windows.Forms.MessageBox.Show("The Elapsed event was raised at {0:HH:mm:ss.fff}" +
-                              e.SignalTime.ToString());*/
         }
 
         public Watcher(string wpath, Form1 forminst, string host, int port, string user, string password, string svpath)
@@ -477,15 +513,14 @@ namespace SyncDetect
 
                 // Watch for changes in LastAccess and LastWrite times, and
                 // the renaming of files or directories.
-                watcher.NotifyFilter = NotifyFilters.LastAccess
-                                     | NotifyFilters.LastWrite
+                watcher.NotifyFilter = /*NotifyFilters.LastAccess
+                                     | */NotifyFilters.LastWrite
                                      | NotifyFilters.FileName
                                      | NotifyFilters.DirectoryName
                                      | NotifyFilters.CreationTime;
 
                 watcher.IncludeSubdirectories = true;
 
-                // Only watch text files.
                 watcher.Filter = "";
 
                 // Add event handlers.
@@ -534,43 +569,53 @@ namespace SyncDetect
                 aTimer.Start();
                 aTimer.Enabled = true;
                 interf.AppendTextBox($"{DateTime.Now.ToString()}    File:   {e.FullPath} {e.ChangeType}\n");
-                mut.ReleaseMutex();
                 //interf.addToTextBox($"File: {e.FullPath} {e.ChangeType}");
             }
             catch (Exception ex)
             {
                 interf.AppendTextBox(ex.Message + "   " + ex.StackTrace + "   " + ex.Source + "\n\n\n\n");
             }
+
+            mut.ReleaseMutex();
         }
 
         private void OnRenamed(object source, RenamedEventArgs e)
         {
-            mut.WaitOne();
-            fsren.Add(e);
-            aRenTimer.Stop();
+            try
+            {
+                mut.WaitOne();
+                fsren.Add(e);
+                removeRenFileFromMList(e);
+                aRenTimer.Stop();
 
-            int operationsCount = fse.Count + fsren.Count;
+                int operationsCount = fse.Count + fsren.Count;
 
-            if (operationsCount > 100)
-            {
-                aTimer.Interval = 60000;
+                if (operationsCount > 100)
+                {
+                    aTimer.Interval = 60000;
+                }
+                else if (operationsCount > 10)
+                {
+                    aTimer.Interval = 20000;
+                }
+                else if (operationsCount > 5)
+                {
+                    aTimer.Interval = 10000;
+                }
+                else
+                {
+                    aTimer.Interval = 5000;
+                }
+
+                aRenTimer.Start();
+                aRenTimer.Enabled = true;
+                interf.AppendTextBox($"{DateTime.Now.ToString()}    File:   {e.OldFullPath} renamed to {e.FullPath}\n");
             }
-            else if (operationsCount > 10)
+            catch (Exception ex)
             {
-                aTimer.Interval = 20000;
-            }
-            else if (operationsCount > 5)
-            {
-                aTimer.Interval = 10000;
-            }
-            else
-            {
-                aTimer.Interval = 5000;
+                interf.AppendTextBox(ex.Message + "   " + ex.StackTrace + "   " + ex.Source + "\n\n\n\n");
             }
 
-            aRenTimer.Start();
-            aRenTimer.Enabled = true;
-            interf.AppendTextBox($"{DateTime.Now.ToString()}    File:   {e.OldFullPath} renamed to {e.FullPath}\n");
             mut.ReleaseMutex();
         }
     }
