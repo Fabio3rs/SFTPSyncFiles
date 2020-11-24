@@ -161,9 +161,9 @@ namespace SyncDetect
                     //System.Windows.Forms.MessageBox.Show(f);
                     try
                     {
-                        using (FileStream fs = new FileStream(f, FileMode.Open))
+                        using (FileStream fs = new FileStream(f, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                         {
-                            client.BufferSize = 4 * 1024;
+                            client.BufferSize = 16 * 1024;
                             client.UploadFile(fs, fullfilepath);
                         }
                     }
@@ -247,9 +247,9 @@ namespace SyncDetect
                         }
                         else
                         {
-                            using (FileStream fs = new FileStream(f.FullPath, FileMode.Open))
+                            using (FileStream fs = new FileStream(f.FullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                             {
-                                client.BufferSize = 4 * 1024;
+                                client.BufferSize = 16 * 1024;
                                 client.UploadFile(fs, spath);
                             }
                         }
@@ -297,6 +297,7 @@ namespace SyncDetect
         {
             try
             {
+                client.BufferSize = 16 * 1024;
                 mut.WaitOne();
 
                 if (!client.IsConnected)
@@ -395,9 +396,8 @@ namespace SyncDetect
 
                                 RecursiveSVMkdir(svfullpath);
 
-                                using (FileStream fs = new FileStream(f.FullPath, FileMode.Open))
+                                using (FileStream fs = new FileStream(f.FullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                                 {
-                                    client.BufferSize = 4 * 1024;
                                     client.UploadFile(fs, serverpath + fpath);
                                 }
                             }
