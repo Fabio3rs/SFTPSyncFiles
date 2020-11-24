@@ -22,6 +22,7 @@ namespace SyncDetect
 
         void SyncDirectory(SftpClient client, string localPath, string remotePath)
         {
+            client.BufferSize = 16 * 1024;
             Console.WriteLine("Uploading directory {0} to {1}", localPath, remotePath);
 
             IEnumerable<FileSystemInfo> infos =
@@ -70,14 +71,13 @@ namespace SyncDetect
 
                     if (supload)
                     {
-                        using (Stream fileStream = new FileStream(info.FullName, FileMode.Open))
+                        using (Stream fileStream = new FileStream(info.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                         {
                             /*String s = String.Format(
                                 "Uploading {0} ({1:N0} bytes)\n",
                                 info.FullName, ((FileInfo)info).Length);
 
                             AppendTextBox(s);*/
-
                             client.UploadFile(fileStream, remotePath + "/" + info.Name);
                         }
                     }
@@ -93,6 +93,8 @@ namespace SyncDetect
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            Hide();
+
             dblistservers = new DataTable();
 
             dblistservers.Columns.Add("id", typeof(Int64));
@@ -177,6 +179,26 @@ namespace SyncDetect
                 //dblistservers.Rows.Add();
             }*/
             //listaservers.Rows[0].Cells["status"].Value = list_wa[0].client.GetStatus("/").AvailableBlocks.ToString();
+
+            if (Environment.GetCommandLineArgs().Length > 1)
+            {
+                if (list_wa.Count == 0)
+                {
+                    foreach (DataRow dr in dblistservers.Rows)
+                    {
+                        list_wa.Add(new Watcher(dr["sourced"].ToString(),
+                            this,
+                            dr["server"].ToString(),
+                            Convert.ToInt32(dr["port"]),
+                            dr["user"].ToString(),
+                            dr["passwd"].ToString(),
+                            dr["targetd"].ToString()));
+                    }
+                }
+
+                syncdir.Enabled = true;
+                timer1.Interval = 5000;
+            }
         }
 
         private void timer1_Tick(object sender, EventArgs e)
@@ -232,9 +254,9 @@ namespace SyncDetect
             {
                 client.Connect();
                 client.ChangeDirectory(destinationpath);
-                using (FileStream fs = new FileStream(sourcefile, FileMode.Open))
+                using (FileStream fs = new FileStream(sourcefile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 {
-                    client.BufferSize = 4 * 1024;
+                    client.BufferSize = 16 * 1024;
                     client.UploadFile(fs, Path.GetFileName(sourcefile));
                 }
             }
@@ -247,9 +269,16 @@ namespace SyncDetect
                 foreach (Watcher wa in list_wa)
                 {
                     wa.mut.WaitOne();
-                    AppendTextBox("Sincronizando " + wa.path + "\n");
-                    SyncDirectory(wa.client, wa.path, wa.serverpath);
-                    AppendTextBox("Finalizada sincronização " + wa.path + "\n");
+                    try
+                    {
+                        AppendTextBox("Sincronizando " + wa.path + "\n");
+                        SyncDirectory(wa.client, wa.path, wa.serverpath);
+                        AppendTextBox("Finalizada sincronização " + wa.path + "\n");
+                    }
+                    catch(Exception ex)
+                    {
+                        AppendTextBox(ex.Message + "   " + ex.StackTrace + "   " + ex.Source + "\n\n\n\n");
+                    }
                     wa.mut.ReleaseMutex();
                 }
             }
@@ -314,11 +343,11 @@ namespace SyncDetect
             if (e.RowIndex == listaservers.NewRowIndex || e.RowIndex < 0)
                 return;
 
-            if (e.ColumnIndex == listaservers.Columns["REMOVER"].Index)
+            /*if (e.ColumnIndex == listaservers.Columns["REMOVER"].Index)
             {
                 //MessageBox.Show(listaservers.Rows[e.RowIndex].Cells["passwd"].Value.ToString());
                 //listaservers.Rows.RemoveAt(e.RowIndex);
-            }
+            }*/
         }
 
         private void connectall_Click(object sender, EventArgs e)
@@ -339,6 +368,18 @@ namespace SyncDetect
 
             syncdir.Enabled = true;
             timer1.Interval = 1000;
+        }
+
+        private void Form1_Resize(object sender, EventArgs e)
+        {
+            if (FormWindowState.Minimized == WindowState)
+                Hide();
+        }
+
+        private void notifyIcon1_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            Show();
+            WindowState = FormWindowState.Normal;
         }
     }
 }
