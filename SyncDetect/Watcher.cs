@@ -52,6 +52,7 @@ namespace SyncDetect
 
         private System.Timers.Timer aTimer = new System.Timers.Timer(5000);
         private System.Timers.Timer aRenTimer = new System.Timers.Timer(4000);
+        private System.Timers.Timer reconnectTimer = new System.Timers.Timer(60000);
 
         public void stop()
         {
@@ -187,6 +188,16 @@ namespace SyncDetect
 
         private void OnTimedRenameEvent(Object source, ElapsedEventArgs e)
         {
+            if (!client.IsConnected)
+            {
+                reconnectTimer.Interval = 500;
+                reconnectTimer.Enabled = true;
+                System.Threading.Thread.Sleep(3000);
+
+                if (!client.IsConnected)
+                    return;
+            }
+
             try
             {
                 mut.WaitOne();
@@ -295,6 +306,17 @@ namespace SyncDetect
 
         private void OnTimedEvent(Object source, ElapsedEventArgs e)
         {
+
+            if (!client.IsConnected)
+            {
+                reconnectTimer.Interval = 500;
+                reconnectTimer.Enabled = true;
+                System.Threading.Thread.Sleep(3000);
+
+                if (!client.IsConnected)
+                    return;
+            }
+
             try
             {
                 client.BufferSize = 16 * 1024;
@@ -460,6 +482,25 @@ namespace SyncDetect
 
             mut.ReleaseMutex();
         }
+        private void OnTimedEventReconnect(Object source, ElapsedEventArgs e)
+        {
+            reconnectTimer.Stop();
+            if (!client.IsConnected)
+            {
+                try
+                {
+                    client.Connect();
+                    client.ChangeDirectory(serverpath);
+
+                    reconnectTimer.Interval = 60000;
+                    interf.addToTextBox(DateTime.Now.ToString() + ": Connected SFTP server\n");
+                }
+                catch (Exception)
+                {
+                    reconnectTimer.Start();
+                }
+            }
+        }
 
         public Watcher(string wpath, Form1 forminst, string host, int port, string user, string password, string svpath)
         {
@@ -480,15 +521,21 @@ namespace SyncDetect
             aRenTimer.AutoReset = true;
             aRenTimer.Enabled = false;
 
-
-            client = new SftpClient(host, port, user, password);
-            client.Connect();
-            client.ChangeDirectory(serverpath);
-
-            /*foreach (Renci.SshNet.Sftp.SftpFile fp in client.ListDirectory(serverpath))
+            try
             {
-                interf.addToTextBox(fp.Attributes.Size.ToString() + "      " + fp.Attributes.LastWriteTime + "     " + fp.FullName + "\n");
-            }*/
+                client = new SftpClient(host, port, user, password);
+                client.Connect();
+                client.ChangeDirectory(serverpath);
+            }
+            catch (Exception ex)
+            {
+                reconnectTimer.Interval = 10000;
+                interf.addToTextBox(ex.Message + "   " + ex.StackTrace + "  " + ex.Source + "\n");
+            }
+
+            reconnectTimer.Elapsed += OnTimedEventReconnect;
+            reconnectTimer.Enabled = true;
+            reconnectTimer.Start();
 
             Run();
         }
