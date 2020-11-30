@@ -54,6 +54,68 @@ namespace SyncDetect
         private System.Timers.Timer aRenTimer = new System.Timers.Timer(4000);
         private System.Timers.Timer reconnectTimer = new System.Timers.Timer(60000);
 
+        public bool blockedBySuspectActivity = false;
+
+        struct possibleencfs
+        {
+            public string file;
+            public string encfile;
+            public int suspectCount;
+        }
+
+        List<possibleencfs> possibleEncFiles = new List<possibleencfs>();
+
+        void addToSuspectList(string f, string ef)
+        {
+            possibleencfs fs = new possibleencfs();
+            fs.file = f;
+            fs.encfile = ef;
+            fs.suspectCount = 0;
+
+            possibleEncFiles.Add(fs);
+        }
+
+        int analyzeRenameActivity(RenamedEventArgs e)
+        {
+
+            return 0;
+        }
+
+        int analyzeActivity(FileSystemEventArgs e)
+        {
+            try
+            {
+                if (e.ChangeType == WatcherChangeTypes.Changed || e.ChangeType == WatcherChangeTypes.Created)
+                {
+                    string fwoext = Path.GetExtension(e.FullPath);
+                    fwoext = e.FullPath.RemoveFromEnd(fwoext);
+
+                    if (fwoext.Length > 0
+                        && File.Exists(fwoext))
+                    {
+                        addToSuspectList(fwoext, e.FullPath);
+                        return 1;
+                    }
+                }
+                else if (e.ChangeType == WatcherChangeTypes.Deleted)
+                {
+                    foreach (possibleencfs f in possibleEncFiles)
+                    {
+                        if (e.FullPath == f.file)
+                        {
+                            return 2;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                interf.AppendTextBox($"Ex: {ex.Message} {ex.StackTrace} {ex.Source}\n\n");
+            }
+
+            return 0;
+        }
+
         public void stop()
         {
             mut.WaitOne();
@@ -591,12 +653,25 @@ namespace SyncDetect
             try
             {
                 mut.WaitOne();
-                addToFileListUnique(e);
+
+                if (analyzeActivity(e) != 2)
+                {
+                    addToFileListUnique(e);
+                }
+                else
+                {
+
+                }
+
                 aTimer.Stop();
 
-                int operationsCount = fse.Count + fsren.Count;
+                int operationsCount = fse.Count + fsren.Count + (possibleEncFiles.Count * 25);
 
-                if (operationsCount > 100)
+                if (operationsCount > 25)
+                {
+                    aTimer.Interval = 12000;
+                }
+                else if (operationsCount > 100)
                 {
                     aTimer.Interval = 60000;
                 }
@@ -631,13 +706,19 @@ namespace SyncDetect
             try
             {
                 mut.WaitOne();
+
                 fsren.Add(e);
                 removeRenFileFromMList(e);
+
                 aRenTimer.Stop();
 
-                int operationsCount = fse.Count + fsren.Count;
+                int operationsCount = fse.Count + fsren.Count + (possibleEncFiles.Count * 25);
 
-                if (operationsCount > 100)
+                if (operationsCount > 25)
+                {
+                    aTimer.Interval = 12000;
+                }
+                else if (operationsCount > 100)
                 {
                     aTimer.Interval = 60000;
                 }
