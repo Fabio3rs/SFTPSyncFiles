@@ -5,6 +5,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Data;
+using System.IO;
+using System.Security.Cryptography;
 
 namespace SyncDetect
 {
@@ -12,6 +14,7 @@ namespace SyncDetect
     {
         XmlNode xmlNode;
         XmlDocument xmlDoc = new XmlDocument();
+        static private byte[] AESKey;
 
         public void FillDataTable(ref DataTable dt)
         {
@@ -64,5 +67,119 @@ namespace SyncDetect
             // xmlList[0].InnerText;
         }
 
+        public static string XmlNodeContentB64(XmlNode node)
+        {
+            return Encoding.UTF8.GetString(Convert.FromBase64String(node.InnerText));
+        }
+
+        public static string XmlNdSNodeContentB64(XmlNode nd, string field)
+        {
+            XmlNode idnode = nd.SelectSingleNode(field);
+            return Encoding.UTF8.GetString(Convert.FromBase64String(idnode.InnerText));
+        }
+
+        public static string XmlGetSNodeContentB64(XmlDocument doc, string field)
+        {
+            XmlNode idnode = doc.DocumentElement.SelectSingleNode(field);
+            return Encoding.UTF8.GetString(Convert.FromBase64String(idnode.InnerText));
+        }
+
+        public static string XmlGetElSNodeContentB64(XmlElement e, string field)
+        {
+            XmlNode idnode = e.SelectSingleNode(field);
+            return Encoding.UTF8.GetString(Convert.FromBase64String(idnode.InnerText));
+        }
+
+        public static void XmlAppendNode(XmlDocument doc, XmlElement e, string name, string value)
+        {
+            XmlNode newElem = doc.CreateNode("element", name, "");
+            newElem.InnerText = value == null ? "" : Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
+
+            e.AppendChild(newElem);
+        }
+
+        public static XmlDocument readEncryptedXML(string file, out byte[] IV)
+        {
+            XmlDocument doc = new XmlDocument();
+
+            IV = new byte[16];
+            using (Aes aesAlg = Aes.Create())
+            {
+                aesAlg.Key = AESKey;
+
+                using (FileStream fs = new FileStream(file + ".iv", FileMode.Open))
+                {
+                    byte[] tmpIV = new byte[32];
+                    int readed = fs.Read(tmpIV, 0, 32);
+
+                    string ivb64str = Encoding.UTF8.GetString(tmpIV, 0, readed);
+                    aesAlg.IV = Convert.FromBase64String(ivb64str);
+                    IV = aesAlg.IV;
+                }
+
+                ICryptoTransform decryptor = aesAlg.CreateDecryptor(aesAlg.Key, aesAlg.IV);
+
+
+                using (MemoryStream msDecrypt = new MemoryStream())
+                {
+                    using (FileStream fsenc = new FileStream(file, FileMode.Open))
+                    {
+                        fsenc.CopyTo(msDecrypt);
+                        msDecrypt.Seek(0, SeekOrigin.Begin);
+
+                        using (CryptoStream csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read))
+                        {
+                            using (StreamReader srDecrypt = new StreamReader(csDecrypt))
+                            {
+                                string xmltext = srDecrypt.ReadToEnd();
+
+                                doc.LoadXml(xmltext);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return doc;
+        }
+
+        public static void writeEncryptedXML(string file, byte[] IV, XmlDocument xdoc)
+        {
+            using (Aes aesAlg = Aes.Create())
+            {
+                aesAlg.Key = AESKey;
+                aesAlg.IV = IV;
+
+                // Create an encryptor to perform the stream transform.
+                ICryptoTransform encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV);
+
+                using (FileStream fs = new FileStream(file + ".iv", FileMode.OpenOrCreate))
+                {
+                    fs.SetLength(0);
+                    string ivb64 = Convert.ToBase64String(aesAlg.IV);
+                    byte[] writebytes = Encoding.UTF8.GetBytes(ivb64);
+                    fs.Write(writebytes, 0, writebytes.Length);
+                }
+
+                // Create the streams used for encryption.
+                using (MemoryStream msEncrypt = new MemoryStream())
+                {
+                    using (CryptoStream csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
+                    {
+                        using (StreamWriter swEncrypt = new StreamWriter(csEncrypt))
+                        {
+                            swEncrypt.Write(xdoc.OuterXml);
+                        }
+                    }
+
+                    using (FileStream fs = new FileStream(file, FileMode.OpenOrCreate))
+                    {
+                        fs.SetLength(0);
+                        byte[] writebytes = msEncrypt.ToArray();
+                        fs.Write(writebytes, 0, writebytes.Length);
+                    }
+                }
+            }
+        }
     }
 }
