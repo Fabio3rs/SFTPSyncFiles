@@ -88,10 +88,10 @@ namespace SyncDetect
             {
                 if (e.ChangeType == WatcherChangeTypes.Changed || e.ChangeType == WatcherChangeTypes.Created)
                 {
-                    string fwoext = Path.GetExtension(e.FullPath);
-                    fwoext = e.FullPath.RemoveFromEnd(fwoext);
+                    string fwoextension = Path.GetExtension(e.FullPath);
+                    string fwoext = e.FullPath.RemoveFromEnd(fwoextension);
 
-                    if (fwoext.Length > 0
+                    if (fwoextension.Length > 0
                         && File.Exists(fwoext))
                     {
                         addToSuspectList(fwoext, e.FullPath);
