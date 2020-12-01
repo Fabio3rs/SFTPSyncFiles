@@ -55,6 +55,7 @@ namespace SyncDetect
         private System.Timers.Timer reconnectTimer = new System.Timers.Timer(60000);
 
         public bool blockedBySuspectActivity = false;
+        private int blockedActivities = 0;
 
         struct possibleencfs
         {
@@ -653,6 +654,7 @@ namespace SyncDetect
             try
             {
                 mut.WaitOne();
+                aTimer.Stop();
 
                 if (analyzeActivity(e) != 2)
                 {
@@ -660,10 +662,12 @@ namespace SyncDetect
                 }
                 else
                 {
-
+                    blockedActivities++;
+                    blockedBySuspectActivity = true;
+                    interf.AppendTextBox($"{DateTime.Now.ToString()} BLOCKED File:   {e.FullPath} {e.ChangeType}\n");
+                    aTimer.Stop();
+                    return;
                 }
-
-                aTimer.Stop();
 
                 int operationsCount = fse.Count + fsren.Count + (possibleEncFiles.Count * 25);
 
