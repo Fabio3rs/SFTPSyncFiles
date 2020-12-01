@@ -204,17 +204,37 @@ namespace SyncDetect
         private void timer1_Tick(object sender, EventArgs e)
         {
             bool processing = false;
+            bool allconnected = true;
             if (list_wa.Count > 0)
             {
                 for (int i = 0; i < list_wa.Count; i++)
                 {
+                    if (list_wa[i].client != null)
+                    {
+                        if (!list_wa[i].client.IsConnected)
+                        {
+                            allconnected = false;
+                        }
+                    }
+                    else
+                    {
+                        allconnected = false;
+                    }
+
                     bool bmut = list_wa[i].mut.WaitOne(30);
 
                     if (bmut)
                     {
                         list_wa[i].mut.ReleaseMutex();
 
-                        listaservers.Rows[i].Cells["status"].Value = "Idle/Watching";
+                        if (list_wa[i].blockedBySuspectActivity)
+                        {
+                            listaservers.Rows[i].Cells["status"].Value = "Detectou atividade suspeita";
+                        }
+                        else
+                        {
+                            listaservers.Rows[i].Cells["status"].Value = "Idle/Watching";
+                        }
                     }
                     else
                     {
@@ -229,7 +249,10 @@ namespace SyncDetect
             else
             {
                 actionsmutexstatus.Text = "Nenhum watcher ativo/Desconectado";
+                allconnected = false;
             }
+
+            connectall.Enabled = !allconnected;
         }
 
         public void addToTextBox(String text)
@@ -269,6 +292,13 @@ namespace SyncDetect
                 foreach (Watcher wa in list_wa)
                 {
                     wa.mut.WaitOne();
+
+                    if (wa.blockedBySuspectActivity)
+                    {
+                        AppendTextBox("Sincronização indisponível no momento devido a atividades estranhas\n\n\n\n");
+                        continue;
+                    }
+
                     try
                     {
                         AppendTextBox("Sincronizando " + wa.path + "\n");
@@ -380,6 +410,13 @@ namespace SyncDetect
         {
             Show();
             WindowState = FormWindowState.Normal;
+        }
+
+        private void aboutbtn_Click(object sender, EventArgs e)
+        {
+            About ab = new About();
+            ab.Show();
+            ab.BringToFront();
         }
     }
 }
