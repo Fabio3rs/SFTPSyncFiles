@@ -666,6 +666,7 @@ namespace SyncDetect
                     blockedBySuspectActivity = true;
                     interf.AppendTextBox($"{DateTime.Now.ToString()} BLOCKED File:   {e.FullPath} {e.ChangeType}\n");
                     aTimer.Stop();
+                    mut.ReleaseMutex();
                     return;
                 }
 
