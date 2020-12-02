@@ -7,6 +7,7 @@ using System.Xml;
 using System.Data;
 using System.IO;
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 
 namespace SyncDetect
 {
@@ -14,7 +15,13 @@ namespace SyncDetect
     {
         XmlNode xmlNode;
         XmlDocument xmlDoc = new XmlDocument();
+        FileStream xmllock;
         static private byte[] AESKey;
+
+        public static String WildCardToRegular(String value)
+        {
+            return "^" + Regex.Escape(value).Replace("\\?", ".").Replace("\\*", ".*") + "$";
+        }
 
         public void FillDataTable(ref DataTable dt)
         {
@@ -63,6 +70,7 @@ namespace SyncDetect
         public conndata()
         {
             xmlDoc.Load("db.xml");
+            xmllock = File.Open("db.xml", FileMode.Open, FileAccess.Read, FileShare.None);
 
             // xmlList[0].InnerText;
         }
