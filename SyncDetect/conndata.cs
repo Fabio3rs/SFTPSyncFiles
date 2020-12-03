@@ -18,6 +18,98 @@ namespace SyncDetect
         FileStream xmllock;
         static private byte[] AESKey;
 
+        // Create byte array for additional entropy when using Protect method.
+        static byte[] s_additionalEntropy = { 155, 128, 32, 200, 12, 1, 64, 255, 0, 245, 33, 18, 16, 6, 90, 15 };
+
+        public static void loadSafeKeys()
+        {
+            if (File.Exists("datastored"))
+            {
+                using (FileStream fs = new FileStream("dataentr", FileMode.Open))
+                {
+                    byte[] tmpIV = new byte[128];
+                    int readed = fs.Read(tmpIV, 0, 128);
+
+                    string ivb64str = Encoding.UTF8.GetString(tmpIV, 0, readed);
+                    s_additionalEntropy = Convert.FromBase64String(ivb64str);
+                }
+
+                using (FileStream fs = new FileStream("datastored", FileMode.Open))
+                {
+                    byte[] encryptedSecret = new byte[fs.Length];
+
+                    fs.Read(encryptedSecret, 0, (int)fs.Length);
+
+                    AESKey = Unprotect(encryptedSecret);
+                }
+            }
+            else
+            {
+                using (FileStream fs = new FileStream("datastored", FileMode.Create))
+                {
+                    using (Aes aesAlg = Aes.Create())
+                    {
+                        aesAlg.GenerateKey();
+                        aesAlg.GenerateIV();
+
+                        using (FileStream fsentrop = new FileStream("dataentr", FileMode.OpenOrCreate))
+                        {
+                            fsentrop.SetLength(0);
+                            string ivb64 = Convert.ToBase64String(aesAlg.IV);
+                            byte[] writebytes = Encoding.UTF8.GetBytes(ivb64);
+                            fsentrop.Write(writebytes, 0, writebytes.Length);
+                        }
+
+                        AESKey = (byte[])aesAlg.Key.Clone();
+
+                        PrintValues(AESKey);
+                        byte[] encryptedSecret = Protect(AESKey);
+                        fs.Write(encryptedSecret, 0, encryptedSecret.Length);
+                    }
+                }
+            }
+        }
+
+        public static byte[] Protect(byte[] data)
+        {
+            try
+            {
+                // Encrypt the data using DataProtectionScope.CurrentUser. The result can be decrypted
+                // only by the same current user.
+                return ProtectedData.Protect(data, s_additionalEntropy, DataProtectionScope.CurrentUser);
+            }
+            catch (CryptographicException e)
+            {
+                Console.WriteLine("Data was not encrypted. An error occurred.");
+                Console.WriteLine(e.ToString());
+                return null;
+            }
+        }
+
+        public static byte[] Unprotect(byte[] data)
+        {
+            try
+            {
+                //Decrypt the data using DataProtectionScope.CurrentUser.
+                return ProtectedData.Unprotect(data, s_additionalEntropy, DataProtectionScope.CurrentUser);
+            }
+            catch (CryptographicException e)
+            {
+                Console.WriteLine("Data was not decrypted. An error occurred.");
+                Console.WriteLine(e.ToString());
+                return null;
+            }
+        }
+
+        public static void PrintValues(Byte[] myArr)
+        {
+            foreach (Byte i in myArr)
+            {
+                Console.Write("\t{0}", i);
+            }
+            Console.WriteLine();
+        }
+
         public static String WildCardToRegular(String value)
         {
             return "^" + Regex.Escape(value).Replace("\\?", ".").Replace("\\*", ".*") + "$";
@@ -72,6 +164,7 @@ namespace SyncDetect
             xmlDoc.Load("db.xml");
             xmllock = File.Open("db.xml", FileMode.Open, FileAccess.Read, FileShare.None);
 
+            loadSafeKeys();
             // xmlList[0].InnerText;
         }
 
