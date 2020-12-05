@@ -46,6 +46,47 @@ namespace SyncDetect
         List<FileSystemEventArgs> fse;
         List<RenamedEventArgs> fsren;
 
+        public ulong uploadingsize = 0, uploaded = 0;
+        public double uploadspeed = 0;
+        DateTime lastupdated = DateTime.Now;
+        public string uploadingfile = "";
+
+        public double calcUpPercent()
+        {
+            if (uploadingsize == 0)
+            {
+                return 0.0;
+            }
+
+            return uploaded / (double)uploadingsize;
+        }
+
+        public void resetUploadData(ulong fsize = 0)
+        {
+            uploadingsize = fsize;
+            uploadingfile = "";
+            uploaded = 0;
+            lastupdated = DateTime.Now;
+        }
+
+        public void uploadcb(ulong s)
+        {
+            double deltad = s - uploaded;
+            uploaded = s;
+
+            double deltat = (DateTime.Now - lastupdated).Milliseconds;
+            lastupdated = DateTime.Now;
+
+            deltat /= 1000;
+
+            if (deltat == 0)
+            {
+                deltat = 0.001;
+            }
+
+            uploadspeed = deltad / deltat;
+        }
+
         public SftpClient client;
 
         public Mutex mut = new Mutex();
@@ -227,8 +268,10 @@ namespace SyncDetect
                     {
                         using (FileStream fs = new FileStream(f, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                         {
+                            resetUploadData((ulong)fs.Length);
+                            uploadingfile = f;
                             client.BufferSize = 16 * 1024;
-                            client.UploadFile(fs, fullfilepath);
+                            client.UploadFile(fs, fullfilepath, uploadcb);
                         }
                     }
                     catch (Exception ex)
@@ -323,8 +366,10 @@ namespace SyncDetect
                         {
                             using (FileStream fs = new FileStream(f.FullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                             {
+                                resetUploadData((ulong)fs.Length);
+                                uploadingfile = f.FullPath;
                                 client.BufferSize = 16 * 1024;
-                                client.UploadFile(fs, spath);
+                                client.UploadFile(fs, spath, uploadcb);
                             }
                         }
                     }
@@ -483,7 +528,9 @@ namespace SyncDetect
 
                                 using (FileStream fs = new FileStream(f.FullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                                 {
-                                    client.UploadFile(fs, serverpath + fpath);
+                                    resetUploadData((ulong)fs.Length);
+                                    uploadingfile = f.FullPath;
+                                    client.UploadFile(fs, serverpath + fpath, uploadcb);
                                 }
                             }
                             catch (Exception ex)

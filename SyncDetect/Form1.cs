@@ -19,11 +19,17 @@ namespace SyncDetect
         List<Watcher> list_wa;
         Thread thr;
         DataTable dblistservers = new DataTable();
+        DateTime dt = DateTime.Now;
+        ulong lastupdata = 0;
+        bool debugTextOutput = false;
+        int syncingWatcherId = 0;
 
         void SyncDirectory(SftpClient client, string localPath, string remotePath)
         {
             client.BufferSize = 16 * 1024;
-            Console.WriteLine("Uploading directory {0} to {1}", localPath, remotePath);
+
+            if (debugTextOutput)
+                Console.WriteLine("Uploading directory {0} to {1}", localPath, remotePath);
 
             IEnumerable<FileSystemInfo> infos =
                 new DirectoryInfo(localPath).EnumerateFileSystemInfos();
@@ -71,14 +77,16 @@ namespace SyncDetect
 
                     if (supload)
                     {
-                        using (Stream fileStream = new FileStream(info.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                        using (FileStream fileStream = new FileStream(info.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                         {
                             /*String s = String.Format(
                                 "Uploading {0} ({1:N0} bytes)\n",
                                 info.FullName, ((FileInfo)info).Length);
 
                             AppendTextBox(s);*/
-                            client.UploadFile(fileStream, remotePath + "/" + info.Name);
+                            list_wa[syncingWatcherId].resetUploadData((ulong)fileStream.Length);
+                            list_wa[syncingWatcherId].uploadingfile = info.FullName;
+                            client.UploadFile(fileStream, remotePath + "/" + info.Name, list_wa[syncingWatcherId].uploadcb);
                         }
                     }
                 }
@@ -89,6 +97,11 @@ namespace SyncDetect
         {
             list_wa = new List<Watcher>();
             InitializeComponent();
+
+            /*string dc = conndata.WildCardToRegular("howtodecrypt*.*");
+            System.Text.RegularExpressions.Regex m = new System.Text.RegularExpressions.Regex(dc);
+
+            MessageBox.Show(m.Match("README_HOW_TO_UNLOCK.HTML").Success.ToString());*/
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -169,7 +182,7 @@ namespace SyncDetect
                 txtb.HeaderText = "STATUS";
                 txtb.CellTemplate.ToolTipText = "Status";
                 txtb.Name = "STATUS";
-                txtb.MinimumWidth = 120;
+                txtb.MinimumWidth = 200;
                 listaservers.Columns.Add(txtb);
             }
 
@@ -240,7 +253,10 @@ namespace SyncDetect
                     {
                         processing = true;
 
-                        listaservers.Rows[i].Cells["status"].Value = "Processando";
+                        listaservers.Rows[i].Cells["status"].Value = "Processando "
+                            + (list_wa[i].calcUpPercent() * 100.0).ToString("N2") + "% "
+                            + (list_wa[i].uploadspeed / (1024 * 1024)).ToString("N3") + "MB/s "
+                            + list_wa[i].uploadingfile;
                     }
                 }
 
@@ -271,7 +287,7 @@ namespace SyncDetect
             richTextBox1.Text += value;
         }
 
-        public static void UploadSFTPFile(string host, string username, string password, string sourcefile, string destinationpath, int port)
+        public void UploadSFTPFile(string host, string username, string password, string sourcefile, string destinationpath, int port)
         {
             using (SftpClient client = new SftpClient(host, port, username, password))
             {
@@ -279,8 +295,10 @@ namespace SyncDetect
                 client.ChangeDirectory(destinationpath);
                 using (FileStream fs = new FileStream(sourcefile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 {
+                    list_wa[syncingWatcherId].resetUploadData((ulong)fs.Length);
+                    list_wa[syncingWatcherId].uploadingfile = sourcefile;
                     client.BufferSize = 16 * 1024;
-                    client.UploadFile(fs, Path.GetFileName(sourcefile));
+                    client.UploadFile(fs, Path.GetFileName(sourcefile), list_wa[syncingWatcherId].uploadcb);
                 }
             }
         }
@@ -289,8 +307,10 @@ namespace SyncDetect
         {
             try
             {
-                foreach (Watcher wa in list_wa)
+                for (int  i = 0; i < list_wa.Count; i++)
                 {
+                    Watcher wa = list_wa[i];
+                    syncingWatcherId = i;
                     wa.mut.WaitOne();
 
                     if (wa.blockedBySuspectActivity)
@@ -402,8 +422,21 @@ namespace SyncDetect
 
         private void Form1_Resize(object sender, EventArgs e)
         {
-            if (FormWindowState.Minimized == WindowState)
-                Hide();
+            switch ( WindowState)
+            {
+                case FormWindowState.Minimized:
+                    Hide();
+                    timer1.Interval = 30000;
+                    break;
+
+                case FormWindowState.Normal:
+                case FormWindowState.Maximized:
+                    timer1.Interval = 1000;
+                    break;
+
+                default:
+                    break;
+            }
         }
 
         private void notifyIcon1_MouseDoubleClick(object sender, MouseEventArgs e)
