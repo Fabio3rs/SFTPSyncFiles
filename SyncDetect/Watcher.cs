@@ -204,7 +204,7 @@ namespace SyncDetect
                         exists = true;
                         break;
                     }
-                    else if (e.ChangeType == f.ChangeType)
+                    else if (e.ChangeType == f.ChangeType || e.ChangeType == WatcherChangeTypes.Created)
                     {
                         exists = true;
                         break;
