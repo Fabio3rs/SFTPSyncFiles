@@ -51,6 +51,7 @@ namespace SyncDetect
                     {
                         aesAlg.GenerateKey();
                         aesAlg.GenerateIV();
+                        s_additionalEntropy = aesAlg.IV;
 
                         using (FileStream fsentrop = new FileStream("dataentr", FileMode.OpenOrCreate))
                         {
