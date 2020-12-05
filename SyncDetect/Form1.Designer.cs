@@ -36,13 +36,13 @@
             this.tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
             this.connectall = new System.Windows.Forms.Button();
             this.syncdir = new System.Windows.Forms.Button();
+            this.aboutbtn = new System.Windows.Forms.Button();
             this.richTextBox1 = new System.Windows.Forms.RichTextBox();
             this.listaservers = new System.Windows.Forms.DataGridView();
             this.timer1 = new System.Windows.Forms.Timer(this.components);
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
             this.actionsmutexstatus = new System.Windows.Forms.ToolStripStatusLabel();
             this.notifyIcon1 = new System.Windows.Forms.NotifyIcon(this.components);
-            this.aboutbtn = new System.Windows.Forms.Button();
             this.tableLayoutPanel1.SuspendLayout();
             this.tableLayoutPanel2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.listaservers)).BeginInit();
@@ -77,7 +77,7 @@
             this.tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25.50839F));
             this.tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 36.93758F));
             this.tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 37.55403F));
-            this.tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 136F));
+            this.tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 138F));
             this.tableLayoutPanel2.Controls.Add(this.connectall, 0, 0);
             this.tableLayoutPanel2.Controls.Add(this.syncdir, 0, 0);
             this.tableLayoutPanel2.Controls.Add(this.aboutbtn, 5, 0);
@@ -112,6 +112,17 @@
             this.syncdir.Text = "Sincronizar diretórios";
             this.syncdir.UseVisualStyleBackColor = true;
             this.syncdir.Click += new System.EventHandler(this.syncdir_Click);
+            // 
+            // aboutbtn
+            // 
+            this.aboutbtn.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.aboutbtn.Location = new System.Drawing.Point(907, 3);
+            this.aboutbtn.Name = "aboutbtn";
+            this.aboutbtn.Size = new System.Drawing.Size(133, 29);
+            this.aboutbtn.TabIndex = 2;
+            this.aboutbtn.Text = "Sobre o programa";
+            this.aboutbtn.UseVisualStyleBackColor = true;
+            this.aboutbtn.Click += new System.EventHandler(this.aboutbtn_Click);
             // 
             // richTextBox1
             // 
@@ -184,17 +195,6 @@
             this.notifyIcon1.Visible = true;
             this.notifyIcon1.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.notifyIcon1_MouseDoubleClick);
             // 
-            // aboutbtn
-            // 
-            this.aboutbtn.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.aboutbtn.Location = new System.Drawing.Point(908, 3);
-            this.aboutbtn.Name = "aboutbtn";
-            this.aboutbtn.Size = new System.Drawing.Size(132, 29);
-            this.aboutbtn.TabIndex = 2;
-            this.aboutbtn.Text = "Sobre o programa";
-            this.aboutbtn.UseVisualStyleBackColor = true;
-            this.aboutbtn.Click += new System.EventHandler(this.aboutbtn_Click);
-            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -204,6 +204,7 @@
             this.Controls.Add(this.tableLayoutPanel1);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "Form1";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Backup e sincronização";
             this.WindowState = System.Windows.Forms.FormWindowState.Minimized;
             this.Load += new System.EventHandler(this.Form1_Load);

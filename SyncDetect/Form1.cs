@@ -155,8 +155,8 @@ namespace SyncDetect
             {
                 DataGridViewColumn c = listaservers.Columns["port"];
                 c.HeaderText = "Porta";
-                c.MinimumWidth = 35;
-                c.Width = 35;
+                c.MinimumWidth = 20;
+                c.Width = 20;
                 c.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
                 c.ReadOnly = false;
             }
@@ -173,8 +173,8 @@ namespace SyncDetect
             {
                 DataGridViewColumn c = listaservers.Columns["passwd"];
                 c.HeaderText = "Senha";
-                c.MinimumWidth = 60;
-                c.Width = 60;
+                c.MinimumWidth = 40;
+                c.Width = 40;
                 c.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
                 c.ReadOnly = false;
             }
@@ -184,7 +184,7 @@ namespace SyncDetect
                 txtb.HeaderText = "STATUS";
                 txtb.CellTemplate.ToolTipText = "Status";
                 txtb.Name = "STATUS";
-                txtb.MinimumWidth = 200;
+                txtb.MinimumWidth = 500;
                 listaservers.Columns.Add(txtb);
             }
 
