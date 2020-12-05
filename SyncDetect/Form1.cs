@@ -69,6 +69,8 @@ namespace SyncDetect
                                 }
                             }
                         }
+
+                        list_wa[syncingWatcherId].uploadingfile = info.FullName;
                     }
                     catch (Exception ex)
                     {
