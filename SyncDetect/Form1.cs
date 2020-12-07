@@ -89,10 +89,12 @@ namespace SyncDetect
                             list_wa[syncingWatcherId].resetUploadData((ulong)fileStream.Length);
                             list_wa[syncingWatcherId].uploadingfile = info.FullName;
                             client.UploadFile(fileStream, remotePath + "/" + info.Name, list_wa[syncingWatcherId].uploadcb);
+                            list_wa[syncingWatcherId].uploadingfile = "";
                         }
                     }
                 }
             }
+            list_wa[syncingWatcherId].uploadingfile = "";
         }
 
         public Form1()
