@@ -290,6 +290,7 @@ namespace SyncDetect
             {
                 interf.AppendTextBox(ex.Message + "   " + ex.StackTrace + "   " + ex.Source + "\n\n\n\n");
             }
+            uploadingfile = "";
         }
 
         private void OnTimedRenameEvent(Object source, ElapsedEventArgs e)
@@ -382,6 +383,7 @@ namespace SyncDetect
                 interf.AppendTextBox(ex.Message + "   " + ex.StackTrace + "   " + ex.Source + "\n\n\n\n");
             }
 
+            uploadingfile = "";
             mut.ReleaseMutex();
         }
 
@@ -583,6 +585,7 @@ namespace SyncDetect
                         }
                     }
                 }
+                uploadingfile = "";
                 fse.Clear();
             }
             catch (Exception ex)
